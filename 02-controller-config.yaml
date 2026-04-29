@@ -1,0 +1,34 @@
+# Test: ControllerConfig usage.
+#
+# Triggers the "controller-config" check via:
+#   - A ControllerConfig CR (v1alpha1, deprecated)
+#   - A Provider referencing it via spec.controllerConfigRef
+#
+# The check covers both Providers and Functions. The Function exercises the
+# second code path; its package may fail to install, but the upgrade-check
+# tool only reads spec, not status.
+---
+apiVersion: pkg.crossplane.io/v1alpha1
+kind: ControllerConfig
+metadata:
+  name: test-controllerconfig
+spec:
+  replicas: 1
+---
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: provider-with-controllerconfig
+spec:
+  package: xpkg.crossplane.io/crossplane-contrib/provider-helm:v1.2.0
+  controllerConfigRef:
+    name: test-controllerconfig
+---
+apiVersion: pkg.crossplane.io/v1
+kind: Function
+metadata:
+  name: function-with-controllerconfig
+spec:
+  package: xpkg.crossplane.io/crossplane-contrib/function-patch-and-transform:v0.10.4
+  controllerConfigRef:
+    name: test-controllerconfig

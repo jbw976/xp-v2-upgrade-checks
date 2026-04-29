@@ -1,0 +1,81 @@
+# Test: composite resource connection details.
+#
+# Triggers the "composite-connection-details" check via:
+#   - A Composition with spec.writeConnectionSecretsToNamespace
+#   - An XR (cluster-scoped) with spec.writeConnectionSecretToRef
+#   - A Claim (namespaced) with spec.writeConnectionSecretToRef
+#
+# As with test 03, the Composition uses mode: Resources, so it will also be
+# flagged by the native-patch-and-transform check.
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: xconndetails.upgradetest.crossplane.io
+spec:
+  group: upgradetest.crossplane.io
+  names:
+    kind: XConnDetails
+    plural: xconndetails
+  claimNames:
+    kind: ConnDetails
+    plural: conndetails
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                parameters:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: conndetails-composition
+spec:
+  compositeTypeRef:
+    apiVersion: upgradetest.crossplane.io/v1alpha1
+    kind: XConnDetails
+  writeConnectionSecretsToNamespace: crossplane-system
+  resources:
+    - name: nop
+      base:
+        apiVersion: nop.crossplane.io/v1alpha1
+        kind: NopResource
+        spec:
+          forProvider:
+            conditionAfter:
+              - conditionType: Ready
+                conditionStatus: "True"
+                time: "5s"
+---
+apiVersion: upgradetest.crossplane.io/v1alpha1
+kind: XConnDetails
+metadata:
+  name: conndetails-xr
+spec:
+  compositionRef:
+    name: conndetails-composition
+  writeConnectionSecretToRef:
+    name: conndetails-xr-secret
+    namespace: crossplane-system
+---
+apiVersion: upgradetest.crossplane.io/v1alpha1
+kind: ConnDetails
+metadata:
+  name: conndetails-claim
+  namespace: default
+spec:
+  compositionRef:
+    name: conndetails-composition
+  writeConnectionSecretToRef:
+    name: conndetails-claim-secret

@@ -1,0 +1,65 @@
+# Test: Compositions using native patch-and-transform.
+#
+# Triggers the "native-patch-and-transform" check. The Composition has an
+# unset spec.mode (defaults to Resources), spec.resources populated, and
+# spec.patchSets populated — all three sub-cases of the check.
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: xnativepnts.upgradetest.crossplane.io
+spec:
+  group: upgradetest.crossplane.io
+  names:
+    kind: XNativePnt
+    plural: xnativepnts
+  claimNames:
+    kind: NativePnt
+    plural: nativepnts
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                parameters:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: nativepnt-composition
+spec:
+  compositeTypeRef:
+    apiVersion: upgradetest.crossplane.io/v1alpha1
+    kind: XNativePnt
+  # Mode is intentionally unset (defaults to "Resources") to exercise the
+  # native patch-and-transform check.
+  patchSets:
+    - name: common
+      patches:
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.name
+          toFieldPath: metadata.labels[upgradetest.crossplane.io/name]
+  resources:
+    - name: nop
+      base:
+        apiVersion: nop.crossplane.io/v1alpha1
+        kind: NopResource
+        spec:
+          forProvider:
+            conditionAfter:
+              - conditionType: Ready
+                conditionStatus: "True"
+                time: "5s"
+      patches:
+        - type: PatchSet
+          patchSetName: common
