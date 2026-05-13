@@ -1,10 +1,6 @@
-# Setup for upgrade-check test fixtures.
-#
-# Installs provider-nop, which provides the NopResource managed resource type
-# referenced by Compositions in subsequent test files.
-#
-# Apply this first and wait for the provider to become Healthy before applying
-# the rest. The accompanying setup.sh script handles ordering automatically.
+# Installs provider-nop, which supplies the NopResource type used by the
+# other fixtures' Compositions. Apply before the rest; setup.sh handles
+# ordering.
 ---
 apiVersion: pkg.crossplane.io/v1
 kind: Provider

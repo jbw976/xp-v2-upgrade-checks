@@ -1,20 +1,10 @@
-# Test: package sources without a fully-qualified registry hostname.
+# Triggers the "unqualified-package-source" check via a Provider and a
+# Function whose spec.package omits the xpkg.crossplane.io registry prefix.
 #
-# Triggers the "unqualified-package-source" check via a Provider and a Function
-# whose spec.package values omit the xpkg.crossplane.io registry prefix. In
-# v1.20 these resolve against the default registry (which is being removed
-# in v2).
-#
-# These reference real published packages — just without their registry
-# hostnames — so they may resolve and install via the v1 default registry.
-# The upgrade-check tool only reads spec; install status is irrelevant.
-#
-# The Configuration code path is intentionally not exercised here:
-# crossplane-contrib publishes only one Configuration (configuration-quickstart)
-# and it has no tagged releases, so there's no real package to point at. The
-# unqualified-package-source check applies the same hostname-detection logic
-# uniformly to Provider, Configuration, and Function, so the Provider and
-# Function cases below exercise the relevant code path.
+# Configuration is intentionally skipped: crossplane-contrib publishes only
+# configuration-quickstart and it has no tagged releases. The check applies
+# the same hostname logic uniformly across all three package kinds, so
+# Provider + Function is enough to cover it.
 ---
 apiVersion: pkg.crossplane.io/v1
 kind: Provider

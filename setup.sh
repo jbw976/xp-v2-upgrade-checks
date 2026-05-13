@@ -1,22 +1,9 @@
 #!/usr/bin/env bash
-# Bootstrap a local kind cluster, install Crossplane v1.20.7, apply all
-# upgrade-check test fixtures, and enable the alpha feature flag that the
-# feature-flags check looks for. Idempotent — safe to rerun.
+# Bootstrap a kind cluster, install Crossplane v1, apply the upgrade-check
+# fixtures, and enable the alpha feature flag. Idempotent.
 #
-# Prerequisites: kind, kubectl, helm.
-#
-# Usage:
-#   ./setup.sh
-#
-# Overrides (env vars):
-#   CLUSTER_NAME        Name of the kind cluster (default: crossplane-upgrade-check)
-#   CROSSPLANE_VERSION  Crossplane chart version, no "v" prefix (default: 1.20.7)
-#
-# After this completes, run:
-#   crossplane beta upgrade check
-#
-# To tear down the test cluster:
-#   kind delete cluster --name <CLUSTER_NAME>
+# Overrides: CLUSTER_NAME (default crossplane-upgrade-check),
+#            CROSSPLANE_VERSION (default 1.20.7, no "v" prefix).
 set -euo pipefail
 
 CLUSTER_NAME="${CLUSTER_NAME:-crossplane-upgrade-check}"
@@ -74,10 +61,9 @@ kubectl wait --for=condition=Healthy --timeout=120s provider/provider-nop || {
     echo "      the upgrade-check tool only reads spec, not status."
 }
 
-# XRDs and their XR/Claim instances live in the same file; kubectl apply can't
-# create instances before the XRD-generated CRDs are established. The first
-# pass tolerates failures on tests 03 and 04, then the second pass after a
-# brief wait creates the XR/Claim instances.
+# Files 03 and 04 contain both an XRD and instances of it. kubectl apply can't
+# create the instances before the XRD's derived CRD is established, so we
+# apply twice with an XRD-Established wait in between.
 echo "==> Applying check fixtures (first pass; XR/Claim instances may fail)..."
 kubectl apply -f "$DIR/01-native-patch-and-transform.yaml"
 kubectl apply -f "$DIR/02-controller-config.yaml"
@@ -85,8 +71,8 @@ kubectl apply -f "$DIR/03-external-secret-stores.yaml" || true
 kubectl apply -f "$DIR/04-composite-connection-details.yaml" || true
 kubectl apply -f "$DIR/05-unqualified-package-sources.yaml"
 
-echo "==> Waiting 15s for XRD-generated CRDs to be established..."
-sleep 15
+echo "==> Waiting for XRDs to become Established (derived CRDs registered)..."
+kubectl wait --for=condition=Established compositeresourcedefinitions --all --timeout=60s
 
 echo "==> Applying XR/Claim instances (second pass)..."
 kubectl apply -f "$DIR/03-external-secret-stores.yaml"
@@ -95,9 +81,8 @@ kubectl apply -f "$DIR/04-composite-connection-details.yaml"
 echo "==> Patching Crossplane Deployment to enable removed alpha feature flag..."
 "$DIR/06-patch-feature-flags.sh"
 
-# Verify the fixtures landed in a healthy state. Each wait is best-effort —
-# a timeout warns but doesn't abort, since the upgrade-check tool only reads
-# spec and works fine even if some resources haven't fully reconciled.
+# Best-effort verification: a timeout warns but doesn't abort. The checker
+# only reads spec, so unreconciled resources don't break it.
 verify_condition() {
     local description="$1"; shift
     local condition="$1"; shift
@@ -117,17 +102,16 @@ verify_condition "Providers Healthy"       Healthy     providers
 verify_condition "Functions Healthy"       Healthy     functions
 verify_condition "XRDs Established"        Established compositeresourcedefinitions
 
-# XRs derived from Claims (and ClusterNopResources composed from XRs) are
-# created asynchronously by Crossplane's controllers. Give them a moment so
-# the wait commands below have something to wait on.
-echo "==> Letting XR/Claim controllers reconcile..."
-sleep 15
-
-verify_condition "External-secret-stores XRs Synced"   Synced xextsecretstores.upgradetest.crossplane.io
-verify_condition "Composite-connection-details XRs Synced" Synced xconndetails.upgradetest.crossplane.io
+# Cascade Claim -> XR to dodge the kubectl-wait-zero-matches race: waiting
+# on Claims first ensures the Claim-derived XRs exist by the time the XR
+# --all wait runs.
+#
+# Composed NopResources are intentionally skipped: the ESS fixture's MRs
+# stay Synced=False by design (see 03-external-secret-stores.yaml).
 verify_condition "External-secret-stores Claims Synced"    Synced extsecretstores.upgradetest.crossplane.io -n default
 verify_condition "Composite-connection-details Claims Synced" Synced conndetails.upgradetest.crossplane.io -n default
-verify_condition "Composed NopResources Synced" Synced nopresources.nop.crossplane.io
+verify_condition "External-secret-stores XRs Synced"       Synced xextsecretstores.upgradetest.crossplane.io
+verify_condition "Composite-connection-details XRs Synced" Synced xconndetails.upgradetest.crossplane.io
 
 echo
 echo "Setup complete. Run the checker against this cluster:"

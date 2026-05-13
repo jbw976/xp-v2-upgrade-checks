@@ -1,13 +1,6 @@
 #!/usr/bin/env bash
 # Patch the Crossplane Deployment to enable an alpha feature flag whose
-# functionality is removed in Crossplane v2. This triggers the "feature-flags"
-# check.
-#
-# Override NAMESPACE and DEPLOYMENT via env vars if your install uses different
-# values (e.g. a non-standard chart release name).
-#
-# Usage:
-#   ./06-patch-feature-flags.sh
+# functionality is removed in v2, triggering the "feature-flags" check.
 #
 # To revert:
 #   kubectl -n "${NAMESPACE:-crossplane-system}" rollout undo deployment/"${DEPLOYMENT:-crossplane}"
@@ -22,7 +15,6 @@ if ! kubectl -n "$NAMESPACE" get deployment "$DEPLOYMENT" >/dev/null 2>&1; then
     exit 1
 fi
 
-# Skip if the flag is already set, to keep the script idempotent.
 if kubectl -n "$NAMESPACE" get deployment "$DEPLOYMENT" -o jsonpath='{.spec.template.spec.containers[0].args}' | grep -q -- '--enable-external-secret-stores'; then
     echo "Flag --enable-external-secret-stores already present on $NAMESPACE/$DEPLOYMENT."
     exit 0

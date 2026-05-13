@@ -1,12 +1,9 @@
-# Test: composite resource connection details.
+# Triggers the "composite-connection-details" check via a Composition with
+# writeConnectionSecretsToNamespace plus an XR and a Claim with
+# spec.writeConnectionSecretToRef.
 #
-# Triggers the "composite-connection-details" check via:
-#   - A Composition with spec.writeConnectionSecretsToNamespace
-#   - An XR (cluster-scoped) with spec.writeConnectionSecretToRef
-#   - A Claim (namespaced) with spec.writeConnectionSecretToRef
-#
-# As with test 03, the Composition uses mode: Resources, so it will also be
-# flagged by the native-patch-and-transform check.
+# The Composition uses mode: Resources, so the native-patch-and-transform
+# check will also fire here.
 ---
 apiVersion: apiextensions.crossplane.io/v1
 kind: CompositeResourceDefinition

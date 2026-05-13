@@ -1,12 +1,6 @@
-# Test: ControllerConfig usage.
-#
-# Triggers the "controller-config" check via:
-#   - A ControllerConfig CR (v1alpha1, deprecated)
-#   - A Provider referencing it via spec.controllerConfigRef
-#
-# The check covers both Providers and Functions. The Function exercises the
-# second code path; its package may fail to install, but the upgrade-check
-# tool only reads spec, not status.
+# Triggers the "controller-config" check via a ControllerConfig referenced
+# from both a Provider and a Function (the two code paths the check covers).
+# Package install status doesn't matter — the checker only reads spec.
 ---
 apiVersion: pkg.crossplane.io/v1alpha1
 kind: ControllerConfig

@@ -1,8 +1,6 @@
-# Test: Compositions using native patch-and-transform.
-#
-# Triggers the "native-patch-and-transform" check. The Composition has an
-# unset spec.mode (defaults to Resources), spec.resources populated, and
-# spec.patchSets populated — all three sub-cases of the check.
+# Triggers the "native-patch-and-transform" check across all three sub-cases:
+# unset spec.mode (defaults to Resources), populated spec.resources, and
+# populated spec.patchSets.
 ---
 apiVersion: apiextensions.crossplane.io/v1
 kind: CompositeResourceDefinition
@@ -41,8 +39,6 @@ spec:
   compositeTypeRef:
     apiVersion: upgradetest.crossplane.io/v1alpha1
     kind: XNativePnt
-  # Mode is intentionally unset (defaults to "Resources") to exercise the
-  # native patch-and-transform check.
   patchSets:
     - name: common
       patches:
