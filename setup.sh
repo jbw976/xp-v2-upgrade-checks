@@ -6,13 +6,23 @@
 #            CROSSPLANE_VERSION (default 1.20.7, no "v" prefix).
 set -euo pipefail
 
+# Colorize warnings (yellow) and errors (red) when stderr is a terminal; stay
+# plain when redirected to a file/pipe or when NO_COLOR is set.
+if [[ -t 2 && -z "${NO_COLOR:-}" ]]; then
+    C_RED=$'\033[0;31m'; C_YELLOW=$'\033[0;33m'; C_RESET=$'\033[0m'
+else
+    C_RED=''; C_YELLOW=''; C_RESET=''
+fi
+warn() { echo "${C_YELLOW}$*${C_RESET}" >&2; }
+err()  { echo "${C_RED}$*${C_RESET}" >&2; }
+
 CLUSTER_NAME="${CLUSTER_NAME:-crossplane-upgrade-check}"
 CROSSPLANE_VERSION="${CROSSPLANE_VERSION:-1.20.7}"
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 require() {
     if ! command -v "$1" >/dev/null 2>&1; then
-        echo "ERROR: required tool '$1' not found in PATH." >&2
+        err "ERROR: required tool '$1' not found in PATH."
         exit 1
     fi
 }
@@ -48,7 +58,7 @@ INSTALLED_IMAGE=$(kubectl get deployment crossplane -n crossplane-system \
 echo "    Crossplane image: $INSTALLED_IMAGE"
 EXPECTED_TAG="v${CROSSPLANE_VERSION}"
 if [[ "$INSTALLED_IMAGE" != *":${EXPECTED_TAG}" ]]; then
-    echo "ERROR: expected Crossplane image tag '${EXPECTED_TAG}', got '$INSTALLED_IMAGE'." >&2
+    err "ERROR: expected Crossplane image tag '${EXPECTED_TAG}', got '$INSTALLED_IMAGE'."
     exit 1
 fi
 
@@ -57,8 +67,8 @@ kubectl apply -f "$DIR/00-setup.yaml"
 
 echo "==> Waiting for provider-nop to install (timeout 120s)..."
 kubectl wait --for=condition=Healthy --timeout=120s provider/provider-nop || {
-    echo "WARN: provider-nop did not become Healthy in time. Continuing anyway —"
-    echo "      the upgrade-check tool only reads spec, not status."
+    warn "WARN: provider-nop did not become Healthy in time. Continuing anyway;"
+    warn "      the upgrade-check tool only reads spec, not status."
 }
 
 # Files 03 and 04 contain both an XRD and instances of it. kubectl apply can't
@@ -94,7 +104,7 @@ verify_condition() {
         | sed 's/^/    /'; then
         :
     else
-        echo "    WARN: not all $kind reached $condition within 180s."
+        warn "    WARN: not all $kind reached $condition within 180s."
     fi
 }
 
