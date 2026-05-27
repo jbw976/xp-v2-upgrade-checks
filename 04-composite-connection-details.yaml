@@ -1,10 +1,115 @@
-# Triggers the "composite-connection-details" check via a Composition with
-# writeConnectionSecretsToNamespace plus an XR and a Claim with
-# spec.writeConnectionSecretToRef.
+# connection-details check (severity: info)
+# Contains manifests for all the deprecated cases in https://docs.crossplane.io/v1.20/concepts/connection-details/
 #
-# The Composition uses mode: Resources, so the native-patch-and-transform
-# check will also fire here.
+# 1. Claim writeConnectionSecretToRef, XR writeConnectionSecretToRef
+# 2. Composition writeConnectionSecretsToNamespace
+# 3. Composition connectionDetails on composed resources, for both native and function patch-and-transform
+# 4. XRD connectionSecretKeys
+
 ---
+# cluster-scoped XR setting writeConnectionSecretToRef
+apiVersion: upgradetest.crossplane.io/v1alpha1
+kind: XConnDetails
+metadata:
+  name: conndetails-xr
+spec:
+  compositionRef:
+    name: pipeline-connection-details
+  writeConnectionSecretToRef:
+    name: conndetails-xr-secret
+    namespace: crossplane-system
+---
+# namespaced Claim setting writeConnectionSecretToRef
+apiVersion: upgradetest.crossplane.io/v1alpha1
+kind: ConnDetails
+metadata:
+  name: conndetails-claim
+  namespace: default
+spec:
+  compositionRef:
+    name: pipeline-connection-details
+  writeConnectionSecretToRef:
+    name: conndetails-claim-secret
+---
+# Composition using writeConnectionSecretsToNamespace
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: conn-secrets-composition
+spec:
+  compositeTypeRef:
+    apiVersion: upgradetest.crossplane.io/v1alpha1
+    kind: XConnDetails
+  mode: Resources
+  writeConnectionSecretsToNamespace: crossplane-system
+  resources:
+    - name: nop
+      base:
+        apiVersion: nop.crossplane.io/v1alpha1
+        kind: NopResource
+        spec:
+          forProvider:
+            conditionAfter:
+              - conditionType: Ready
+                conditionStatus: "True"
+                time: "5s"
+---
+# native (mode: Resources) connectionDetails on a composed resource
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: native-connection-details
+spec:
+  compositeTypeRef:
+    apiVersion: upgradetest.crossplane.io/v1alpha1
+    kind: XConnDetails
+  mode: Resources
+  resources:
+    - name: nop
+      base:
+        apiVersion: nop.crossplane.io/v1alpha1
+        kind: NopResource
+        spec:
+          forProvider:
+            conditionAfter:
+              - conditionType: Ready
+                conditionStatus: "True"
+                time: "5s"
+      connectionDetails:
+        - name: kubeconfig
+          type: FromConnectionSecretKey
+          fromConnectionSecretKey: kubeconfig
+---
+# function-patch-and-transform pipeline step using connectionDetails on a composed resource
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: pipeline-connection-details
+spec:
+  compositeTypeRef:
+    apiVersion: upgradetest.crossplane.io/v1alpha1
+    kind: XConnDetails
+  mode: Pipeline
+  pipeline:
+    - step: patch-and-transform
+      functionRef:
+        name: function-patch-and-transform
+      input:
+        apiVersion: pt.fn.crossplane.io/v1beta1
+        kind: Resources
+        resources:
+          - name: nop
+            base:
+              apiVersion: nop.crossplane.io/v1alpha1
+              kind: NopResource
+              spec:
+                forProvider: {}
+            connectionDetails:
+              - name: kubeconfig
+                type: FromConnectionSecretKey
+                fromConnectionSecretKey: kubeconfig
+---
+# XRD declaring connectionSecretKeys
 apiVersion: apiextensions.crossplane.io/v1
 kind: CompositeResourceDefinition
 metadata:
@@ -17,6 +122,9 @@ spec:
   claimNames:
     kind: ConnDetails
     plural: conndetails
+  connectionSecretKeys:
+    - foo
+    - bar
   versions:
     - name: v1alpha1
       served: true
@@ -33,46 +141,4 @@ spec:
                   properties:
                     name:
                       type: string
----
-apiVersion: apiextensions.crossplane.io/v1
-kind: Composition
-metadata:
-  name: conndetails-composition
-spec:
-  compositeTypeRef:
-    apiVersion: upgradetest.crossplane.io/v1alpha1
-    kind: XConnDetails
-  writeConnectionSecretsToNamespace: crossplane-system
-  resources:
-    - name: nop
-      base:
-        apiVersion: nop.crossplane.io/v1alpha1
-        kind: NopResource
-        spec:
-          forProvider:
-            conditionAfter:
-              - conditionType: Ready
-                conditionStatus: "True"
-                time: "5s"
----
-apiVersion: upgradetest.crossplane.io/v1alpha1
-kind: XConnDetails
-metadata:
-  name: conndetails-xr
-spec:
-  compositionRef:
-    name: conndetails-composition
-  writeConnectionSecretToRef:
-    name: conndetails-xr-secret
-    namespace: crossplane-system
----
-apiVersion: upgradetest.crossplane.io/v1alpha1
-kind: ConnDetails
-metadata:
-  name: conndetails-claim
-  namespace: default
-spec:
-  compositionRef:
-    name: conndetails-composition
-  writeConnectionSecretToRef:
-    name: conndetails-claim-secret
+

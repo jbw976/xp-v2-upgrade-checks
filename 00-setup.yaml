@@ -1,6 +1,8 @@
-# Installs provider-nop, which supplies the NopResource type used by the
-# other fixtures' Compositions. Apply before the rest; setup.sh handles
-# ordering.
+# Installs the packages the fixtures depend on:
+#   - provider-nop supplies the NopResource type used by the Compositions.
+#   - function-patch-and-transform supplies the Pipeline step that the
+#     composite-connection-details fixture's pipeline Composition references.
+# Apply before the rest; setup.sh handles ordering.
 ---
 apiVersion: pkg.crossplane.io/v1
 kind: Provider
@@ -8,3 +10,10 @@ metadata:
   name: provider-nop
 spec:
   package: xpkg.crossplane.io/crossplane-contrib/provider-nop:v0.4.0
+---
+apiVersion: pkg.crossplane.io/v1
+kind: Function
+metadata:
+  name: function-patch-and-transform
+spec:
+  package: xpkg.crossplane.io/crossplane-contrib/function-patch-and-transform:v0.10.6
