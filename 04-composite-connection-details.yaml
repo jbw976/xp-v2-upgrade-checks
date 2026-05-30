@@ -1,4 +1,4 @@
-# connection-details check (severity: info)
+# composite-connection-details check (severity: info)
 # Contains manifests for all the deprecated cases in https://docs.crossplane.io/v1.20/concepts/connection-details/
 #
 # 1. Claim writeConnectionSecretToRef, XR writeConnectionSecretToRef

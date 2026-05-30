@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Patch the Crossplane Deployment to enable an alpha feature flag whose
-# functionality is removed in v2, triggering the "feature-flags" check.
+# functionality is removed in v2. The external-secret-stores check flags the
+# --enable-external-secret-stores flag on the Crossplane Deployment.
 #
 # To revert:
 #   kubectl -n "${NAMESPACE:-crossplane-system}" rollout undo deployment/"${DEPLOYMENT:-crossplane}"

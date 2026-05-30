@@ -19,7 +19,7 @@ Each fixture targets one of the v2 upgrade checks:
 | `03-external-secret-stores.yaml`          | external-secret-stores         |
 | `04-composite-connection-details.yaml`    | composite-connection-details   |
 | `05-unqualified-package-sources.yaml`     | unqualified-package-source     |
-| `06-patch-feature-flags.sh`               | feature-flags                  |
+| `06-patch-feature-flags.sh`               | external-secret-stores (Deployment flag) |
 
 ## Pre-reqs
 
@@ -49,7 +49,9 @@ CLUSTER_NAME=my-cluster CROSSPLANE_VERSION=1.20.7 ./setup.sh
 crossplane beta upgrade check
 ```
 
-You should see findings for each of the six checks listed above.
+You should see findings for all five checks listed above. The external-secret-stores
+check produces findings from two fixtures: `03` (StoreConfig, Composition, and MR
+usage) and `06` (the `--enable-external-secret-stores` Deployment flag).
 
 ## Teardown
 
